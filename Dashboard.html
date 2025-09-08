@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard Perpustakaan</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.2/html2pdf.bundle.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+  <style>
+    body { margin: 0; font-family: 'Segoe UI', Arial, sans-serif; background: #f4f6f9; display: flex; transition:0.3s; }
+    .sidebar { width: 230px; background: #222d32; color: white; height: 100vh; position: fixed; left: 0; top: 0; padding-top: 20px; overflow-y: auto; transition:0.3s; }
+    .sidebar h2 { text-align: center; margin-bottom: 20px; }
+    .sidebar a { display: block; padding: 12px 20px; color: white; text-decoration: none; transition: 0.3s; }
+    .sidebar a:hover { background: #1e282c; }
+    .main { margin-left: 230px; padding: 20px; width: 100%; }
+    h1 { margin-top: 0; }
+    .card { display: inline-block; width: 220px; padding: 20px; margin: 10px; border-radius: 10px; color: #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.3); cursor: pointer; transition: 0.3s; text-align: center; }
+    .card:hover { transform: scale(1.05); }
+    .bg-blue { background: #007bff; }
+    .bg-orange { background: #ff9800; }
+    .bg-green { background: #28a745; }
+    .bg-red { background: #dc3545; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    table, th, td { border: 1px solid #000; }
+    th, td { padding: 8px; text-align: left; }
+    th { background: #007bff; color: white; }
+    button { padding: 6px 12px; border: none; border-radius: 5px; cursor: pointer; }
+    .btn-blue { background-color: #007bff; color: #fff; padding: 8px 15px; border-radius: 5px; cursor: pointer; transition: background 0.3s ease; }
+    .btn-blue:hover { background-color: #0056b3; }
+    .btn-hapus { background: #e74c3c; color: white; }
+    .btn-pdf { background: #28a745; color: white; margin-top: 10px; }
+
+    /* Tema tambahan */
+    body.gelap { background:#1e1e1e; color:#f0f0f0; }
+    .sidebar.gelap { background:#111; }
+    body.biru { background:#003366; color:white; }
+    .sidebar.biru { background:#002244; }
+    body.hijau { background:#004d26; color:white; }
+    .sidebar.hijau { background:#00331a; }
+    body.ungu { background:#3d0066; color:white; }
+    .sidebar.ungu { background:#2a0044; }
+
+    #previewWarna { transition:0.3s; width:100px; height:50px; border-radius:8px; border:1px solid #ccc; }
+  </style>
+</head>
+<body>
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <h2>📚 PERPUS PINTAR</h2>
+    <a href="#" onclick="showContent('dashboard')">🏠 Dashboard</a>
+    <a href="#" onclick="showContent('buku')">📚 Data Buku</a>
+    <a href="#" onclick="showContent('anggota')">👨‍🎓 Data Anggota</a>
+    <a href="#" onclick="showContent('pinjam')">📖 Pinjam Buku</a>
+    <a href="#" onclick="showContent('kembali')">📥 Pengembalian Buku</a>
+    <a href="#" onclick="showContent('laporan')">📑 Laporan</a>
+    <a href="#" onclick="showContent('pengaturan')">⚙️ Pengaturan</a>
+    <a href="#" onclick="showContent('tentang')">ℹ️ Tentang</a>
+    <a href="#" onclick="logout()">🚪 Logout</a>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <!-- Dashboard -->
+    <div id="dashboard" class="page">
+      <h1>Dashboard Administrator</h1>
+      <bh3>👨🏻‍🎓Jangan pernah berhenti membaca. Jangan pernah berhenti belajar.
+         Mulailah perjalanan Anda hari ini di perpustakaan kami dan 
+         Jadikan perpustakaan sebagai tempat Anda membangun pengetahuan dan meraih kesuksesan🎓.
+          Setiap buku📚 adalah kunci baru untuk masa depan Anda😉<b/h3>
+      <div style="display:flex; flex-wrap:wrap;">
+        <div class="card bg-blue"><h2 id="statBuku">0</h2><p>Buku</p></div>
+        <div class="card bg-orange"><h2 id="statAnggota">0</h2><p>Anggota</p></div>
+        <div class="card bg-green"><h2 id="statDipinjam">0</h2><p>Sirkulasi Berjalan</p></div>
+        <div class="card bg-red"><h2 id="statLaporan">0</h2><p>Laporan</p></div>
+      </div>
+      <h2>📊 Statistik Peminjaman</h2>
+      <canvas id="grafikPinjam" style="max-height:400px;"></canvas>
+    </div>
+
+    <!-- Data Buku -->
+    <div id="buku" class="page" style="display:none;">
+      <h1>Data Buku</h1>
+      <input type="text" id="judulBuku" placeholder="Judul Buku">
+      <button onclick="tambahBuku()" class="btn-blue">Tambah</button>
+      <table>
+        <thead><tr><th>No</th><th>Judul</th><th>Aksi</th></tr></thead>
+        <tbody id="tabelBuku"></tbody>
+      </table>
+    </div>
+
+    <!-- Data Anggota -->
+    <div id="anggota" class="page" style="display:none;">
+      <h1>Data Anggota</h1>
+      <input type="text" id="namaAnggota" placeholder="Nama Anggota">
+      <button onclick="tambahAnggota()" class="btn-blue">Tambah</button>
+      <table>
+        <thead><tr><th>No</th><th>Nama</th><th>Aksi</th></tr></thead>
+        <tbody id="tabelAnggota"></tbody>
+      </table>
+    </div>
+
+    <!-- Pinjam Buku -->
+    <div id="pinjam" class="page" style="display:none;">
+      <h1>Form Peminjaman Buku</h1>
+      <label>Nama Peminjam:</label><br>
+      <input type="text" id="nama"><br><br>
+      <label>Judul Buku:</label><br>
+      <select id="judul" class="select2" style="width: 100%;"></select><br><br>
+      <label>Tanggal Pinjam:</label><br>
+      <input type="date" id="tgl"><br><br>
+      <button onclick="pinjamBuku()" class="btn-blue">Pinjam</button>
+      <h2>Data Peminjaman</h2>
+      <table>
+        <thead><tr><th>NO</th><th>Nama</th><th>Buku</th><th>Tanggal</th><th>Aksi</th></tr></thead>
+        <tbody id="tabelPinjam"></tbody>
+      </table>
+    </div>
+
+    <!-- Pengembalian -->
+    <div id="kembali" class="page" style="display:none;">
+      <h1>Pengembalian Buku</h1>
+      <table>
+        <thead><tr><th>No</th><th>Nama</th><th>Buku</th><th>Tanggal Pinjam</th><th>Aksi</th></tr></thead>
+        <tbody id="tabelKembali"></tbody>
+      </table>
+    </div>
+
+    <!-- Laporan -->
+    <div id="laporan" class="page" style="display:none;">
+      <h1>Laporan Peminjaman</h1>
+      <div id="laporanContent">
+        <table>
+          <thead><tr><th>NO</th><th>Nama</th><th>Buku</th><th>Tanggal</th></tr></thead>
+          <tbody id="tabelLaporan"></tbody>
+        </table>
+      </div>
+      <button class="btn-pdf" onclick="cetakPDF()">Cetak PDF</button>
+    </div>
+
+    <!-- Pengaturan -->
+    <div id="pengaturan" class="page" style="display:none;">
+      <h1>Pengaturan Tampilan</h1>
+      <label>Pilih Tema:</label><br>
+      <select id="pilihTema" onchange="gantiTema()" style="padding:6px; border-radius:5px; font-size:16px;">
+        <option value="terang">🌞 Mode Terang</option>
+        <option value="gelap">🌙 Mode Gelap</option>
+        <option value="biru">🔵 Mode Biru</option>
+        <option value="hijau">🟢 Mode Hijau</option>
+        <option value="ungu">🟣 Mode Ungu</option>
+      </select>
+      <div style="margin-top:20px;">
+        <p><b>Preview Warna:</b></p>
+        <div id="previewWarna"></div>
+      </div>
+    </div>
+
+    <!-- Tentang -->
+    <div id="tentang" class="page" style="display:none;">
+      <h1>Tentang Aplikasi</h1>
+      <bh3>perpustakaan sekolah berbasis web jauh melampaui sekadar penyimpanan buku; 
+        ia adalah platform digital yang komprehensif untuk mendukung proses belajar mengajar dan pengembangan literasi, 
+        dengan fungsi utamanya meliputi akses koleksi digital dan fisik yang mudah, 
+        penyediaan sumber belajar dan penelitian yang relevan, pengembangan keterampilan literasi digital,
+         fasilitasi kolaborasi, efisiensi administrasi, dan pemeliharaan data yang terintegrasi, 
+         sehingga perpustakaan menjadi pusat pengetahuan dan informasi yang dinamis dan terhubung dengan komunitas sekolah secara luas. .</p>
+      <p>Dibuat dengan HTML, CSS, JavaScript, dan localStorage.<b/h3>
+    </div>
+  </div>
+
+  <script>
+    function showContent(id){
+      document.querySelectorAll('.page').forEach(p=>p.style.display="none");
+      document.getElementById(id).style.display="block";
+      if(id==="dashboard"){ renderChart(); updateStatistik(); }
+      if(id==="pinjam"){ tampilData(); isiPilihanBuku(); }
+      if(id==="laporan"){ tampilLaporan(); }
+      if(id==="buku"){ tampilBuku(); }
+      if(id==="anggota"){ tampilAnggota(); }
+      if(id==="kembali"){ tampilKembali(); }
+    }
+    function logout(){ window.location.href = "index.html"; }
+
+    // ==== DATA BUKU ====
+    function tambahBuku(){
+      let judul=document.getElementById("judulBuku").value;
+      if(judul===""){alert("Judul kosong!");return;}
+      let buku=JSON.parse(localStorage.getItem("dataBuku"))||[];
+      buku.push(judul);
+      localStorage.setItem("dataBuku",JSON.stringify(buku));
+      tampilBuku(); document.getElementById("judulBuku").value="";
+    }
+    function tampilBuku(){
+      let buku=JSON.parse(localStorage.getItem("dataBuku"))||[];
+      let html=""; buku.forEach((b,i)=>{ html+=`<tr><td>${i+1}</td><td>${b}</td><td><button class="btn-hapus" onclick="hapusBuku(${i})">Hapus</button></td></tr>`; });
+      document.getElementById("tabelBuku").innerHTML=html;
+    }
+    function hapusBuku(i){
+      let buku=JSON.parse(localStorage.getItem("dataBuku"))||[];
+      buku.splice(i,1);
+      localStorage.setItem("dataBuku",JSON.stringify(buku));
+      tampilBuku();
+    }
+    function isiPilihanBuku(){
+      let buku=JSON.parse(localStorage.getItem("dataBuku"))||[];
+      let select=document.getElementById("judul");
+      select.innerHTML="<option value=''>-- Pilih Buku --</option>";
+      buku.forEach(b=>{select.innerHTML+=`<option>${b}</option>`;});
+      $('#judul').select2();
+    }
+
+    // ==== DATA ANGGOTA ====
+    function tambahAnggota(){
+      let nama=document.getElementById("namaAnggota").value;
+      if(nama===""){alert("Nama kosong!");return;}
+      let anggota=JSON.parse(localStorage.getItem("dataAnggota"))||[];
+      anggota.push(nama);
+      localStorage.setItem("dataAnggota",JSON.stringify(anggota));
+      tampilAnggota(); document.getElementById("namaAnggota").value="";
+    }
+    function tampilAnggota(){
+      let anggota=JSON.parse(localStorage.getItem("dataAnggota"))||[];
+      let html=""; anggota.forEach((a,i)=>{ html+=`<tr><td>${i+1}</td><td>${a}</td><td><button class="btn-hapus" onclick="hapusAnggota(${i})">Hapus</button></td></tr>`; });
+      document.getElementById("tabelAnggota").innerHTML=html;
+    }
+    function hapusAnggota(i){
+      let anggota=JSON.parse(localStorage.getItem("dataAnggota"))||[];
+      anggota.splice(i,1);
+      localStorage.setItem("dataAnggota",JSON.stringify(anggota));
+      tampilAnggota();
+    }
+
+    // ==== PEMINJAMAN ====
+    function pinjamBuku(){
+      let nama=document.getElementById("nama").value;
+      let judul=document.getElementById("judul").value;
+      let tgl=document.getElementById("tgl").value;
+      if(nama===""||judul===""||tgl===""){alert("Lengkapi data!");return;}
+      let data=JSON.parse(localStorage.getItem("dataPinjam"))||[];
+      data.push({peminjam:nama,buku:judul,tanggal:tgl});
+      localStorage.setItem("dataPinjam",JSON.stringify(data));
+      tampilData(); updateStatistik(); renderChart();
+      document.getElementById("nama").value=""; document.getElementById("tgl").value="";
+      $('#judul').val(null).trigger('change');
+    }
+    function tampilData(){
+      let data=JSON.parse(localStorage.getItem("dataPinjam"))||[];
+      let html=""; data.forEach((d,i)=>{ html+=`<tr><td>${i+1}</td><td>${d.peminjam}</td><td>${d.buku}</td><td>${d.tanggal}</td><td><button class="btn-hapus" onclick="kembalikan(${i})">Kembalikan</button></td></tr>`; });
+      document.getElementById("tabelPinjam").innerHTML=html;
+    }
+    function kembalikan(i){
+      let data=JSON.parse(localStorage.getItem("dataPinjam"))||[];
+      let kembali=JSON.parse(localStorage.getItem("dataKembali"))||[];
+      kembali.push(data[i]);
+      localStorage.setItem("dataKembali",JSON.stringify(kembali));
+      data.splice(i,1);
+      localStorage.setItem("dataPinjam",JSON.stringify(data));
+      tampilData(); tampilKembali(); updateStatistik(); renderChart();
+    }
+
+    // ==== PENGEMBALIAN ====
+    function tampilKembali(){
+      let kembali=JSON.parse(localStorage.getItem("dataKembali"))||[];
+      let html=""; kembali.forEach((d,i)=>{ html+=`<tr><td>${i+1}</td><td>${d.peminjam}</td><td>${d.buku}</td><td>${d.tanggal}</td><td><button class="btn-hapus" onclick="hapusKembali(${i})">Hapus</button></td></tr>`; });
+      document.getElementById("tabelKembali").innerHTML=html;
+    }
+    function hapusKembali(i){
+      let kembali=JSON.parse(localStorage.getItem("dataKembali"))||[];
+      kembali.splice(i,1);
+      localStorage.setItem("dataKembali",JSON.stringify(kembali));
+      tampilKembali();
+    }
+
+    // ==== LAPORAN ====
+    function tampilLaporan(){
+      let data=JSON.parse(localStorage.getItem("dataPinjam"))||[];
+      let html=""; data.forEach((d,i)=>{ html+=`<tr><td>${i+1}</td><td>${d.peminjam}</td><td>${d.buku}</td><td>${d.tanggal}</td></tr>`; });
+      document.getElementById("tabelLaporan").innerHTML=html;
+    }
+
+    // ==== STATISTIK ====
+    function updateStatistik(){
+      let data=JSON.parse(localStorage.getItem("dataPinjam"))||[];
+      let buku=JSON.parse(localStorage.getItem("dataBuku"))||[];
+      let anggota=JSON.parse(localStorage.getItem("dataAnggota"))||[];
+      document.getElementById("statBuku").innerText=buku.length;
+      document.getElementById("statAnggota").innerText=anggota.length;
+      document.getElementById("statDipinjam").innerText=data.length;
+      document.getElementById("statLaporan").innerText=data.length;
+    }
+    let chart;
+    function renderChart(){
+      let data=JSON.parse(localStorage.getItem("dataPinjam"))||[];
+      let count={};
+      data.forEach(d=>{count[d.buku]=(count[d.buku]||0)+1;});
+      let ctx=document.getElementById("grafikPinjam").getContext("2d");
+      if(chart) chart.destroy();
+      chart=new Chart(ctx,{ type:"bar", data:{labels:Object.keys(count), datasets:[{label:"Jumlah Peminjaman",data:Object.values(count)}]} });
+    }
+
+    // ==== CETAK PDF ====
+    function cetakPDF(){
+      let data=JSON.parse(localStorage.getItem("dataPinjam"))||[];
+      let isiTabel=""; data.forEach((d,i)=>{ isiTabel+=`<tr><td>${i+1}</td><td>${d.peminjam}</td><td>${d.buku}</td><td>${d.tanggal}</td></tr>`; });
+
+      let element=document.createElement("div");
+      element.innerHTML=`
+<div style="display:flex; align-items:center; border-bottom:3px solid #000; padding-bottom:10px; margin-bottom:15px;">
+  <img src="images/logo.gif" style="height:85px; margin-right:15px;">
+  <div style="text-align:center; flex:1;">
+    <h1 style="margin:0;">PERPUSTAKAAN YAYASAN</h1>
+    <h2 style="margin:0;">MTSS HASANATAN HILIR</h2>
+    <p style="margin:0;">Jl. Besar Sei Rebut I Desa Tanjung Mangedar Kec.Kualuh Hilir Kode Pos 21474</p>
+    <p style="margin:0;">Email: mtsswastahasanatanhilir@gmail.com | Telp.085260657295</p>
+  </div>
+</div>
+<div style="text-align:center; margin:20px 0;">
+  <h3 style="margin:0;">LAPORAN PEMINJAMAN BUKU</h3>
+</div>
+<table style="width:100%; border-collapse:collapse;" border="1">
+  <thead><tr><th>NO</th><th>Nama</th><th>Buku</th><th>Tanggal</th></tr></thead>
+  <tbody>${isiTabel}</tbody>
+</table>
+<div style="display:flex; justify-content:space-between; margin-top:50px; padding:0 40px;">
+  <div style="text-align:center;">
+    <p>Mengetahui,</p>
+    <p>Kepala Sekolah</p>
+    <br><br><br>
+    <p><b>(AHMAD FAUJI DALIMUNTHE,S.Sy)</b></p>
+  </div>
+  <div style="text-align:center;">
+    <p>Tanjung Mangedar, ..........20</p>
+    <p>Kepala Perpustakaan</p>
+    <br><br><br>
+    <p><b>(MUHAMMAD RASID RITONGA)</b></p>
+  </div>
+</div>`;
+      html2pdf().set({
+        margin:0.5,
+        filename:'laporan_perpustakaan.pdf',
+        image:{type:'jpeg',quality:1},
+        html2canvas:{scale:2,useCORS:true},
+        jsPDF:{unit:'in',format:'a4',orientation:'portrait'}
+      }).from(element).save();
+    }
+
+    // ==== PENGATURAN ====
+    function setTema(tema){
+      let body = document.body;
+      let sidebar = document.querySelector(".sidebar");
+
+      body.className = "";
+      sidebar.className = "sidebar";
+
+      if(tema!=="terang"){
+        body.classList.add(tema);
+        sidebar.classList.add(tema);
+      }
+
+      let pilih = document.getElementById("pilihTema");
+      if(pilih) pilih.value = tema;
+
+      let preview = document.getElementById("previewWarna");
+      if(preview){
+        let warna = "#f4f6f9";
+        if(tema==="gelap") warna = "#1e1e1e";
+        if(tema==="biru") warna = "#003366";
+        if(tema==="hijau") warna = "#004d26";
+        if(tema==="ungu") warna = "#3d0066";
+        preview.style.background = warna;
+      }
+
+      localStorage.setItem("tema",tema);
+    }
+    function gantiTema(){
+      let tema = document.getElementById("pilihTema").value;
+      setTema(tema);
+    }
+
+    // jalankan awal
+    updateStatistik(); renderChart(); tampilBuku(); tampilAnggota(); tampilData(); tampilKembali();
+    let temaAwal = localStorage.getItem("tema") || "terang";
+    setTema(temaAwal);
+  </script>
+</body>
+</html>
